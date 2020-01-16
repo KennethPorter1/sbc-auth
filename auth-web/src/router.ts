@@ -7,13 +7,17 @@ import DashboardView from '@/views/auth/DashboardView.vue'
 import DuplicateTeamWarningView from '@/views/auth/DuplicateTeamWarningView.vue'
 import EntityManagement from '@/components/auth/EntityManagement.vue'
 import HomeView from '@/views/auth/HomeView.vue'
+import InvitationsDataTable from '@/components/auth/InvitationsDataTable.vue'
 import KeyCloakService from '@/services/keycloak.services'
 import LeaveTeamLandingView from '@/views/auth/LeaveTeamLandingView.vue'
+import MemberDataTable from '@/components/auth/MemberDataTable.vue'
 import PageNotFound from '@/views/auth/PageNotFound.vue'
 import PaymentReturnView from '@/views/pay/PaymentReturnView.vue'
 import PaymentView from '@/views/pay/PaymentView.vue'
 import PendingApprovalView from '@/views/auth/PendingApprovalView.vue'
+import PendingMemberDataTable from '@/components/auth/PendingMemberDataTable.vue'
 import ProfileDeactivatedView from '@/views/auth/ProfileDeactivatedView.vue'
+
 import Router from 'vue-router'
 import SearchBusinessView from '@/views/auth/SearchBusinessView.vue'
 import SigninView from '@/views/auth/SigninView.vue'
@@ -45,7 +49,22 @@ export function getRoutes () {
       children: [
         {
           path: 'team',
-          component: UserManagement
+          component: UserManagement,
+          redirect: '/main/team/active',
+          children: [ {
+            path: 'active',
+            component: MemberDataTable
+          },
+          {
+            path: 'pending',
+            component: PendingMemberDataTable
+          },
+          {
+            path: 'invitations',
+            component: InvitationsDataTable
+          }
+
+          ]
         },
         {
           path: 'business',

@@ -12,39 +12,12 @@
 
     <!-- Tab Navigation -->
     <v-tabs class="mb-7" v-model="tab" background-color="transparent">
-      <v-tab data-test="active-tab">Active</v-tab>
-      <v-tab data-test="pending-approval-tab" v-show="canInvite()">Pending Approval</v-tab>
-      <v-tab data-test="invitations-tab" v-show="canInvite()">Invitations</v-tab>
+      <v-tab data-test="active-tab" to="/main/team/active">Active</v-tab>
+      <v-tab data-test="pending-approval-tab" to="/main/team/pending" v-show="canInvite()">Pending Approval</v-tab>
+      <v-tab data-test="invitations-tab" to="/main/team/invitations" v-show="canInvite()">Invitations</v-tab>
     </v-tabs>
 
-    <v-card flat>
-      <v-card-text>
-
-        <!-- Tab Contents -->
-        <v-tabs-items v-model="tab">
-          <v-tab-item>
-            <MemberDataTable
-              @confirm-remove-member="showConfirmRemoveModal($event)"
-              @confirm-change-role="showConfirmChangeRoleModal($event)"
-              @confirm-leave-team="showConfirmLeaveTeamModal()"
-              @single-owner-error="showSingleOwnerErrorModal()"
-            />
-          </v-tab-item>
-          <v-tab-item>
-            <PendingMemberDataTable
-              @confirm-approve-member="showConfirmApproveModal($event)"
-              @confirm-deny-member="showConfirmRemoveModal($event)"
-            />
-          </v-tab-item>
-          <v-tab-item>
-            <InvitationsDataTable
-              @confirm-remove-invite="showConfirmRemoveInviteModal($event)"
-              @resend="resend($event)"
-            />
-          </v-tab-item>
-        </v-tabs-items>
-      </v-card-text>
-    </v-card>
+    <router-view></router-view>
 
     <!-- Invite Users Dialog -->
     <ModalDialog
@@ -64,43 +37,6 @@
       </template>
     </ModalDialog>
 
-    <!-- Confirm Action Dialog -->
-    <ModalDialog
-      ref="confirmActionDialog"
-      :title="confirmActionTitle"
-      :text="confirmActionText"
-      dialog-class="notify-dialog"
-      max-width="640"
-    >
-      <template v-slot:icon>
-        <v-icon large color="error">mdi-alert-circle-outline</v-icon>
-      </template>
-      <template v-slot:actions>
-        <v-btn large color="primary" @click="confirmHandler()">{{ primaryActionText }}</v-btn>
-        <v-btn large color="default" @click="cancel()">{{ secondaryActionText }}</v-btn>
-      </template>
-    </ModalDialog>
-
-    <!-- Confirm Action Dialog With Email Question-->
-    <ModalDialog
-      ref="confirmActionDialogWithQuestion"
-      :title="confirmActionTitle"
-      :text="confirmActionText"
-      dialog-class="notify-dialog"
-      max-width="640"
-    >
-      <template v-slot:icon>
-        <v-icon large color="primary">mdi-information-outline</v-icon>
-      </template>
-      <template v-slot:text>
-        {{ confirmActionText }}
-      </template>
-      <template v-slot:actions>
-        <v-btn large color="primary" @click="confirmHandler()">{{ primaryActionText }}</v-btn>
-        <v-btn large color="default" @click="cancelEmailModal()">{{ secondaryActionText }}</v-btn>
-      </template>
-    </ModalDialog>
-
     <!-- Alert Dialog (Success) -->
     <ModalDialog
       ref="successDialog"
@@ -110,107 +46,69 @@
       max-width="640"
     ></ModalDialog>
 
-    <!-- Alert Dialog (Error) -->
-    <ModalDialog
-      ref="errorDialog"
-      :title="errorTitle"
-      :text="errorText"
-      dialog-class="notify-dialog"
-      max-width="640"
-    >
-      <template v-slot:icon>
-        <v-icon large color="error">mdi-alert-circle-outline</v-icon>
-      </template>
-      <template v-slot:actions>
-        <v-btn large color="error" @click="close()">OK</v-btn>
-      </template>
-    </ModalDialog>
   </v-container>
 </template>
 
 <script lang="ts">
-import { ActiveUserRecord, Member, MembershipStatus, MembershipType, Organization, PendingUserRecord, UpdateMemberPayload } from '@/models/Organization'
 import { Component, Vue } from 'vue-property-decorator'
-import MemberDataTable, { ChangeRolePayload } from '@/components/auth/MemberDataTable.vue'
+import { Member, MembershipStatus, MembershipType, Organization } from '@/models/Organization'
 import { mapActions, mapGetters, mapState } from 'vuex'
 import { Business } from '@/models/business'
 import { Invitation } from '@/models/Invitation'
 import InvitationsDataTable from '@/components/auth/InvitationsDataTable.vue'
 import InviteUsersForm from '@/components/auth/InviteUsersForm.vue'
+import MemberDataTable from '@/components/auth/MemberDataTable.vue'
 import ModalDialog from '@/components/auth/ModalDialog.vue'
 import OrgModule from '@/store/modules/org'
 import PendingMemberDataTable from '@/components/auth/PendingMemberDataTable.vue'
-import _ from 'lodash'
 import { getModule } from 'vuex-module-decorators'
 
-@Component({
-  components: {
-    MemberDataTable,
-    InvitationsDataTable,
-    PendingMemberDataTable,
-    InviteUsersForm,
-    ModalDialog
-  },
-  computed: {
-    ...mapState('org', [
-      'resending',
-      'sentInvitations'
-    ]),
-    ...mapState('business', ['currentBusiness']),
-    ...mapGetters('org', ['myOrgMembership'])
-  },
-  methods: {
-    ...mapActions('org', [
-      'resendInvitation',
-      'deleteInvitation',
-      'updateMember',
-      'approveMember',
-      'leaveTeam',
-      'syncOrganizations'
-    ])
-  }
-})
+  @Component({
+    components: {
+      MemberDataTable,
+      InvitationsDataTable,
+      PendingMemberDataTable,
+      InviteUsersForm,
+      ModalDialog
+    },
+    computed: {
+      ...mapState('org', [
+        'resending',
+        'sentInvitations',
+        'myOrgMembership'
+      ]),
+      ...mapState('business', ['currentBusiness'])
+    },
+    methods: {
+      ...mapActions('org', [
+        'syncOrganizations',
+        'syncMyOrgMembership'
+      ])
+    }
+  })
 export default class UserManagement extends Vue {
   private orgStore = getModule(OrgModule, this.$store)
   private successTitle: string = ''
   private successText: string = ''
-  private errorTitle: string = ''
-  private errorText: string = ''
   private tab = null
   private isLoading = true
-  private memberToBeRemoved: Member
-  private memberToBeApproved: Member
-  private invitationToBeRemoved: Invitation
-  private roleChangeToAction: ChangeRolePayload
-  private confirmActionTitle: string = ''
-  private confirmActionText: string = ''
-  private primaryActionText: string = ''
-  private secondaryActionText = 'No'
-
-  private confirmHandler: () => void = undefined
 
   private readonly currentBusiness!: Business
   private readonly resending!: boolean
   private readonly sentInvitations!: Invitation[]
   private readonly myOrgMembership!: Member
-  private readonly resendInvitation!: (invitation: Invitation) => void
-  private readonly deleteInvitation!: (invitationId: number) => void
-  private readonly updateMember!: (updateMemberPayload: UpdateMemberPayload) => void
-  private readonly approveMember!: (memberId: number) => void
-  private readonly leaveTeam!: (memberId: number) => void
-  private readonly syncOrganizations!: () => Promise<Organization[]>
+    private readonly syncMyOrgMembership!:() => Member
 
-  private notifyUser = true
+  private readonly syncOrganizations!: () => Promise<Organization[]>
 
   $refs: {
     successDialog: ModalDialog
-    errorDialog: ModalDialog
     inviteUsersDialog: ModalDialog
-    confirmActionDialog: ModalDialog
-    confirmActionDialogWithQuestion:ModalDialog
+    errorDialog: ModalDialog
   }
 
   private async mounted () {
+    await this.syncMyOrgMembership()
     this.isLoading = false
   }
 
@@ -234,124 +132,6 @@ export default class UserManagement extends Vue {
     this.successTitle = `Invited ${this.sentInvitations.length} Team Members`
     this.successText = 'Your team invitations have been sent successfully.'
     this.$refs.successDialog.open()
-  }
-
-  private async resend (invitation: Invitation) {
-    await this.resendInvitation(invitation)
-    this.showSuccessModal()
-  }
-
-  private showConfirmRemoveModal (member: Member) {
-    if (member.membershipStatus === MembershipStatus.Pending) {
-      this.confirmActionTitle = this.$t('confirmDenyMemberTitle').toString()
-      this.confirmActionText = `Are you sure you want to deny membership to ${member.user.firstname}?`
-      this.confirmHandler = this.deny
-      this.primaryActionText = 'Deny'
-    } else {
-      this.confirmActionTitle = this.$t('confirmRemoveMemberTitle').toString()
-      this.confirmActionText = `Are you sure you want to remove ${member.user.firstname} from the team?`
-      this.confirmHandler = this.removeMember
-      this.primaryActionText = 'Remove'
-    }
-    this.memberToBeRemoved = member
-    this.$refs.confirmActionDialog.open()
-  }
-
-  private showConfirmChangeRoleModal (payload: ChangeRolePayload) {
-    if (payload.member.membershipTypeCode.toString() === payload.targetRole.toString()) {
-      return
-    }
-    this.confirmActionTitle = this.$t('confirmRoleChangeTitle').toString()
-    this.confirmActionText = `Are you sure you wish to change ${payload.member.user.firstname}'s role to ${payload.targetRole}?`
-    this.roleChangeToAction = payload
-    this.confirmHandler = this.changeRole
-    this.primaryActionText = 'Yes'
-    this.$refs.confirmActionDialogWithQuestion.open()
-  }
-
-  private showConfirmLeaveTeamModal () {
-    this.confirmActionTitle = this.$t('confirmLeaveTeamTitle').toString()
-    this.confirmActionText = this.$t('confirmLeaveTeamText').toString()
-    this.confirmHandler = this.leave
-    this.primaryActionText = 'Leave'
-    this.$refs.confirmActionDialog.open()
-  }
-
-  private showSingleOwnerErrorModal () {
-    this.errorTitle = this.$t('singleOwnerErrorTitle').toString()
-    this.errorText = this.$t('singleOwnerErrorText').toString()
-    this.$refs.errorDialog.open()
-  }
-
-  private showConfirmRemoveInviteModal (invitation: Invitation) {
-    this.confirmActionTitle = this.$t('confirmRemoveInviteTitle').toString()
-    this.confirmActionText = `Are you sure wish to remove the invite to ${invitation.recipientEmail}?`
-    this.invitationToBeRemoved = invitation
-    this.confirmHandler = this.removeInvite
-    this.primaryActionText = 'Remove'
-    this.$refs.confirmActionDialog.open()
-  }
-
-  private showConfirmApproveModal (member: Member) {
-    this.confirmActionTitle = this.$t('confirmApproveMemberTitle').toString()
-    this.confirmActionText = `Are you sure you wish to approve membership for ${member.user.firstname}?`
-    this.memberToBeApproved = member
-    this.confirmHandler = this.approve
-    this.primaryActionText = 'Approve'
-    this.$refs.confirmActionDialog.open()
-  }
-
-  private cancel () {
-    this.$refs.confirmActionDialog.close()
-  }
-
-  private cancelEmailModal () {
-    this.$refs.confirmActionDialogWithQuestion.close()
-  }
-
-  private async removeMember () {
-    await this.updateMember({
-      memberId: this.memberToBeRemoved.id,
-      status: MembershipStatus.Inactive
-    })
-    this.$refs.confirmActionDialog.close()
-  }
-
-  private async changeRole () {
-    await this.updateMember({
-      memberId: this.roleChangeToAction.member.id,
-      role: this.roleChangeToAction.targetRole.toString().toUpperCase(),
-      notifyUser: this.notifyUser
-    })
-    this.$refs.confirmActionDialogWithQuestion.close()
-    await this.syncOrganizations()
-  }
-
-  private async removeInvite () {
-    await this.deleteInvitation(this.invitationToBeRemoved.id)
-    this.$refs.confirmActionDialog.close()
-  }
-
-  private async approve () {
-    await this.updateMember({
-      memberId: this.memberToBeApproved.id,
-      status: MembershipStatus.Active
-    })
-    this.$refs.confirmActionDialog.close()
-  }
-
-  private async deny () {
-    await this.updateMember({
-      memberId: this.memberToBeRemoved.id,
-      status: MembershipStatus.Rejected
-    })
-    this.$refs.confirmActionDialog.close()
-  }
-
-  private async leave () {
-    await this.leaveTeam(this.myOrgMembership.id)
-    this.$refs.confirmActionDialog.close()
-    this.$router.push('/leaveteam')
   }
 
   private close () {

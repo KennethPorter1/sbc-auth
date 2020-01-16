@@ -35,7 +35,7 @@ opentracing==2.3.0
 psycopg2-binary==2.8.4
 pyasn1==0.4.8
 pycparser==2.19
-pyrsistent==0.15.6
+pyrsistent==0.15.7
 python-dateutil==2.8.1
 python-dotenv==0.10.3
 python-editor==1.0.4
@@ -44,7 +44,7 @@ python-keycloak==0.18.0
 pytz==2019.3
 requests==2.22.0
 rsa==4.0
-sentry-sdk==0.13.5
+sentry-sdk==0.14.0
 six==1.13.0
 threadloop==1.0.2
 thrift==0.13.0

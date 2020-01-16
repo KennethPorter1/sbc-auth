@@ -25,14 +25,22 @@ export default class OrgModule extends VuexModule {
   orgCreateMessage = 'success'
   invalidInvitationToken = false
   tokenError = false
+  myOrgMembership:Member
 
+  /*
   get myOrgMembership (): Member {
-    const currentUser: UserInfo = this.context.rootState.user.currentUser
+     const currentUser: UserInfo = this.context.rootState.user.currentUser
     const orgMembers: Member[] = [...this.context.rootState.org.activeOrgMembers, ...this.context.rootState.org.pendingOrgMembers]
     if (orgMembers && currentUser) {
       return orgMembers.find(member => member.user.username === currentUser.userName)
     }
     return undefined
+  }
+   */
+
+  @Mutation
+  public setMyOrgMembership (member: Member) {
+    this.myOrgMembership = member
   }
 
   @Mutation
@@ -95,9 +103,6 @@ export default class OrgModule extends VuexModule {
   @Action({ rawError: true })
   public async syncCurrentOrganization (organization: Organization): Promise<void> {
     this.context.commit('setCurrentOrganization', organization)
-    await this.context.dispatch('syncActiveOrgMembers')
-    await this.context.dispatch('syncPendingOrgMembers')
-    await this.context.dispatch('syncPendingOrgInvitations')
   }
 
   @Action({ rawError: true })
@@ -225,6 +230,14 @@ export default class OrgModule extends VuexModule {
       if (response.data.orgs && response.data.orgs.length > 0) {
         await this.context.dispatch('syncCurrentOrganization', response.data.orgs[0])
       }
+    }
+  }
+
+  @Action({ commit: 'setMyOrgMembership', rawError: true })
+  public async syncMyOrgMembership () {
+    if (this.context.state['currentOrganization']) {
+      const response = await OrgService.getOrgMemberShipForCurrentUser(this.context.state['currentOrganization'].id)
+      return response.data
     }
   }
 

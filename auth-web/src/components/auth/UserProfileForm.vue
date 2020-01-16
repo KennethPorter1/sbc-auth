@@ -147,13 +147,13 @@
 
 <script lang="ts">
 import { Component, Mixins, Vue } from 'vue-property-decorator'
+import { Member, Organization } from '@/models/Organization'
 import { User, UserTerms } from '@/models/user'
 import { mapActions, mapState } from 'vuex'
 import { Contact } from '@/models/contact'
 import ModalDialog from '@/components/auth/ModalDialog.vue'
 import NextPageMixin from '@/components/auth/NextPageMixin.vue'
 import OrgModule from '@/store/modules/org'
-import { Organization } from '@/models/Organization'
 import TermsOfUseDialog from '@/components/auth/TermsOfUseDialog.vue'
 import UserModule from '@/store/modules/user'
 import UserService from '@/services/user.services'
@@ -179,7 +179,7 @@ import { mask } from 'vue-the-mask'
         'updateCurrentUserTerms'
       ]
     ),
-    ...mapActions('org', ['syncOrganizations'])
+    ...mapActions('org', ['syncOrganizations', 'syncMyOrgMembership'])
   }
 })
 export default class UserProfileForm extends Mixins(NextPageMixin) {
@@ -201,6 +201,7 @@ export default class UserProfileForm extends Mixins(NextPageMixin) {
     private editing = false
     private deactivateProfileDialog = false
     private isDeactivating = false
+    private readonly syncMyOrgMembership!:() => Member
 
     $refs: {
       deactivateUserConfirmationDialog: ModalDialog,
@@ -240,7 +241,7 @@ export default class UserProfileForm extends Mixins(NextPageMixin) {
       if (!this.userProfile) {
         await this.getUserProfile('@me')
       }
-
+      debugger
       if (!this.organizations || this.organizations.length < 1) {
         await this.syncOrganizations()
       }
@@ -278,6 +279,7 @@ export default class UserProfileForm extends Mixins(NextPageMixin) {
           await this.updateUserContact(contact)
         }
         await this.getUserProfile('@me')
+        await this.syncMyOrgMembership()
         this.redirectToNext()
       }
     }

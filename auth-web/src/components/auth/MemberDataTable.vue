@@ -1,4 +1,5 @@
 <template>
+  <v-container class="view-container">
   <v-data-table
     class="user-list"
     :headers="headerMembers"
@@ -62,13 +63,77 @@
       </v-btn>
     </template>
   </v-data-table>
+
+    <ModalDialog
+            ref="confirmActionDialog"
+            :title="confirmActionTitle"
+            :text="confirmActionText"
+            dialog-class="notify-dialog"
+            max-width="640"
+    >
+      <template v-slot:icon>
+        <v-icon large color="error">mdi-alert-circle-outline</v-icon>
+      </template>
+      <template v-slot:actions>
+        <v-btn large color="primary" @click="confirmHandler()">{{ primaryActionText }}</v-btn>
+        <v-btn large color="default" @click="cancel()">{{ secondaryActionText }}</v-btn>
+      </template>
+    </ModalDialog>
+
+    <!-- Confirm Action Dialog With Email Question-->
+    <ModalDialog
+            ref="confirmActionDialogWithQuestion"
+            :title="confirmActionTitle"
+            :text="confirmActionText"
+            dialog-class="notify-dialog"
+            max-width="640"
+    >
+      <template v-slot:icon>
+        <v-icon large color="primary">mdi-information-outline</v-icon>
+      </template>
+      <template v-slot:text>
+        {{ confirmActionText }}
+      </template>
+      <template v-slot:actions>
+        <v-btn large color="primary" @click="confirmHandler()">{{ primaryActionText }}</v-btn>
+        <v-btn large color="default" @click="cancelEmailModal()">{{ secondaryActionText }}</v-btn>
+      </template>
+    </ModalDialog>
+
+    <!-- Alert Dialog (Success) -->
+    <ModalDialog
+            ref="successDialog"
+            :title="successTitle"
+            :text="successText"
+            dialog-class="notify-dialog"
+            max-width="640"
+    ></ModalDialog>
+
+    <!-- Alert Dialog (Error) -->
+    <ModalDialog
+            ref="errorDialog"
+            :title="errorTitle"
+            :text="errorText"
+            dialog-class="notify-dialog"
+            max-width="640"
+    >
+      <template v-slot:icon>
+        <v-icon large color="error">mdi-alert-circle-outline</v-icon>
+      </template>
+      <template v-slot:actions>
+        <v-btn large color="error" @click="close()">OK</v-btn>
+      </template>
+    </ModalDialog>
+
+  </v-container>
 </template>
 
 <script lang="ts">
 import { Component, Emit, Vue } from 'vue-property-decorator'
-import { Member, MembershipStatus, MembershipType, Organization, RoleInfo } from '@/models/Organization'
+import { Member, MembershipStatus, MembershipType, Organization, RoleInfo, UpdateMemberPayload } from '@/models/Organization'
 import { mapActions, mapGetters, mapState } from 'vuex'
 import { Business } from '@/models/business'
+import ModalDialog from '@/components/auth/ModalDialog.vue'
 import moment from 'moment'
 
 export interface ChangeRolePayload {
@@ -77,16 +142,51 @@ export interface ChangeRolePayload {
 }
 
 @Component({
+  components: {
+    ModalDialog
+  },
   computed: {
     ...mapState('business', ['businesses']),
-    ...mapState('org', ['activeOrgMembers']),
-    ...mapGetters('org', ['myOrgMembership'])
+    ...mapState('org', ['activeOrgMembers', 'myOrgMembership'])
+  },
+  methods: {
+    ...mapActions('org', [
+      'resendInvitation',
+      'deleteInvitation',
+      'updateMember',
+      'approveMember',
+      'leaveTeam',
+      'syncOrganizations',
+      'syncActiveOrgMembers'
+    ])
   }
 })
 export default class MemberDataTable extends Vue {
   private readonly businesses!: Business[]
   private readonly activeOrgMembers!: Member[]
   private readonly myOrgMembership!: Member
+  private readonly syncActiveOrgMembers!: () => Member[]
+  private confirmActionTitle: string = ''
+  private confirmActionText: string = ''
+  private primaryActionText: string = ''
+  private secondaryActionText = 'No'
+  private confirmHandler: () => void = undefined
+  private memberToBeRemoved: Member
+  private readonly updateMember!: (updateMemberPayload: UpdateMemberPayload) => void
+  private roleChangeToAction: ChangeRolePayload
+  private notifyUser = true
+  private readonly leaveTeam!: (memberId: number) => void
+  private readonly syncOrganizations!: () => Promise<Organization[]>
+  private errorTitle: string = ''
+  private errorText: string = ''
+  private successTitle: string = ''
+  private successText: string = ''
+
+  $refs: {
+    errorDialog: ModalDialog
+    confirmActionDialog: ModalDialog
+    confirmActionDialogWithQuestion:ModalDialog
+  }
 
   private readonly availableRoles: RoleInfo[] = [
     {
@@ -133,6 +233,10 @@ export default class MemberDataTable extends Vue {
       width: '80'
     }
   ]
+
+  private async mounted () {
+    await this.syncActiveOrgMembers()
+  }
 
   private getIndexedTag (tag, index): string {
     return `${tag}-${index}`
@@ -261,29 +365,103 @@ export default class MemberDataTable extends Vue {
     return false
   }
 
+  private close () {
+    this.$refs.errorDialog.close()
+  }
+
   @Emit()
-  private confirmRemoveMember (member: Member) {}
+  private confirmRemoveMember (member: Member) {
+    if (member.membershipStatus === MembershipStatus.Pending) {
+      this.confirmActionTitle = this.$t('confirmDenyMemberTitle').toString()
+      this.confirmActionText = `Are you sure you want to deny membership to ${member.user.firstname}?`
+      this.confirmHandler = this.deny
+      this.primaryActionText = 'Deny'
+    } else {
+      this.confirmActionTitle = this.$t('confirmRemoveMemberTitle').toString()
+      this.confirmActionText = `Are you sure you want to remove ${member.user.firstname} from the team?`
+      this.confirmHandler = this.removeMember
+      this.primaryActionText = 'Remove'
+    }
+    this.memberToBeRemoved = member
+    this.$refs.confirmActionDialog.open()
+  }
 
   @Emit()
   private confirmChangeRole (member: Member, targetRole: string): ChangeRolePayload {
+    if (member.membershipTypeCode.toString() === targetRole.toString()) {
+      return
+    }
+    this.confirmActionTitle = this.$t('confirmRoleChangeTitle').toString()
+    this.confirmActionText = `Are you sure you wish to change ${member.user.firstname}'s role to ${targetRole}?`
+    this.roleChangeToAction = {
+      member,
+      targetRole
+    }
+    this.confirmHandler = this.changeRole
+    this.primaryActionText = 'Yes'
+    this.$refs.confirmActionDialogWithQuestion.open()
+
     return {
       member,
       targetRole
     }
   }
 
+  private async changeRole () {
+    await this.updateMember({
+      memberId: this.roleChangeToAction.member.id,
+      role: this.roleChangeToAction.targetRole.toString().toUpperCase(),
+      notifyUser: this.notifyUser
+    })
+    this.$refs.confirmActionDialogWithQuestion.close()
+    await this.syncOrganizations()
+  }
+
   private confirmLeaveTeam (member: Member) {
     if (member.membershipTypeCode === MembershipType.Owner &&
         this.ownerCount() === 1 &&
         !this.canDissolve()) {
-      this.$emit('single-owner-error')
+      this.confirmActionTitle = this.$t('confirmLeaveTeamTitle').toString()
+      this.confirmActionText = this.$t('confirmLeaveTeamText').toString()
+      this.confirmHandler = this.leave
+      this.primaryActionText = 'Leave'
+      this.$refs.confirmActionDialog.open()
     } else {
-      this.$emit('confirm-leave-team')
+      this.confirmActionTitle = this.$t('confirmLeaveTeamTitle').toString()
+      this.confirmActionText = this.$t('confirmLeaveTeamText').toString()
+      this.confirmHandler = this.leave
+      this.primaryActionText = 'Leave'
+      this.$refs.confirmActionDialog.open()
     }
+  }
+
+  private async leave () {
+    await this.leaveTeam(this.myOrgMembership.id)
+    this.$refs.confirmActionDialog.close()
+    this.$router.push('/leaveteam')
   }
 
   private isOwnMembership (member: Member) {
     return !!this.myOrgMembership && this.myOrgMembership.user.username === member.user.username
+  }
+  private async deny () {
+    await this.updateMember({
+      memberId: this.memberToBeRemoved.id,
+      status: MembershipStatus.Rejected
+    })
+    this.$refs.confirmActionDialog.close()
+  }
+
+  private cancel () {
+    this.$refs.confirmActionDialog.close()
+  }
+
+  private async removeMember () {
+    await this.updateMember({
+      memberId: this.memberToBeRemoved.id,
+      status: MembershipStatus.Inactive
+    })
+    this.$refs.confirmActionDialog.close()
   }
 }
 </script>

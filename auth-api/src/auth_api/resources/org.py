@@ -31,7 +31,6 @@ from auth_api.utils.enums import NotificationType
 from auth_api.utils.roles import ALL_ALLOWED_ROLES, CLIENT_ADMIN_ROLES, Role, Status
 from auth_api.utils.util import cors_preflight
 
-
 API = Namespace('orgs', description='Endpoints for organization management')
 
 TRACER = Tracer.get_instance()
@@ -237,6 +236,31 @@ class OrgAffiliation(Resource):
         except BusinessException as exception:
             response, status = {'code': exception.code, 'message': exception.message}, \
                                exception.status_code
+
+        return response, status
+
+
+@cors_preflight('GET,OPTIONS')
+@API.route('/<string:org_id>/member/@me', methods=['GET', 'OPTIONS'])
+class OrgMember(Resource):
+    """Resource for managing curret users membership for a single organization."""
+
+    @staticmethod
+    @_JWT.requires_auth
+    @TRACER.trace()
+    @cors.crossdomain(origin='*')
+    def get(org_id):
+        """Retrieve the current member for the given org."""
+        try:
+            member = MembershipService.get_current_user_membership_for_org(org_id, token_info=g.jwt_oidc_token_info)
+            if member:
+                response, status =  MembershipSchema(exclude=['org']).dump(member), \
+                                   http_status.HTTP_200_OK
+            else:
+                response, status = {}, \
+                                   http_status.HTTP_200_OK
+        except BusinessException as exception:
+            response, status = {'code': exception.code, 'message': exception.message}, exception.status_code
 
         return response, status
 

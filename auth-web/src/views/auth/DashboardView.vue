@@ -27,12 +27,11 @@ import { VueConstructor } from 'vue'
   },
   computed: {
     ...mapState('user', ['userProfile']),
-    ...mapState('org', ['currentOrganization']),
-    ...mapGetters('org', ['myOrgMembership'])
+    ...mapState('org', ['currentOrganization', 'myOrgMembership'])
   },
   methods: {
     ...mapActions('user', ['getUserProfile']),
-    ...mapActions('org', ['syncOrganizations', 'syncCurrentOrganization'])
+    ...mapActions('org', ['syncOrganizations', 'syncCurrentOrganization', 'syncCurrentOrganization', 'syncMyOrgMembership'])
   }
 })
 export default class DashboardView extends Vue {
@@ -43,31 +42,30 @@ export default class DashboardView extends Vue {
   private readonly getUserProfile!: (identifier: string) => User
   private readonly syncOrganizations!: () => Organization[]
   private readonly syncCurrentOrganization!: (organization: Organization) => Promise<void>
+  private readonly syncMyOrgMembership!:() => Member
 
   private menu = [
     {
       title: 'Manage Businesses',
       icon: 'business',
       testTag: 'manage-business-nav',
-      path: 'business'
+      path: '/main/business'
     },
     {
       title: 'Manage Team',
       icon: 'group',
       testTag: 'manage-teams-nav',
-      path: 'team'
+      path: '/main/team'
     }
   ]
 
   async mounted () {
     // Check for existing state, and if not tell store to update
-    if (!this.userProfile) {
-      this.getUserProfile('@me')
-    }
-
+    this.getUserProfile('@me')
     if (!this.currentOrganization) {
       await this.syncOrganizations()
     }
+    await this.syncMyOrgMembership()
 
     // Check the current user's team status
     // TODO: For now this means checking their single team, later it will mean checking the active team.

@@ -5,11 +5,11 @@
 <script lang="ts">
 import { Component, Mixins, Prop } from 'vue-property-decorator'
 import { KeycloakError, KeycloakPromise } from 'keycloak-js'
+import { Member, Organization } from '@/models/Organization'
 import { mapActions, mapState } from 'vuex'
 import CommonUtils from '@/util/common-util'
 import NextPageMixin from '@/components/auth/NextPageMixin.vue'
 import OrgModule from '@/store/modules/org'
-import { Organization } from '@/models/Organization'
 import TokenService from 'sbc-common-components/src/services/token.services'
 import { User } from '@/models/user'
 import { UserInfo } from '@/models/userInfo'
@@ -25,7 +25,7 @@ import { getModule } from 'vuex-module-decorators'
         'syncUserProfile'
       ]
     ),
-    ...mapActions('org', ['syncOrganizations', 'syncCurrentOrganization'])
+    ...mapActions('org', ['syncOrganizations', 'syncCurrentOrganization', 'syncMyOrgMembership'])
   }
 })
 export default class Signin extends Mixins(NextPageMixin) {
@@ -36,6 +36,7 @@ export default class Signin extends Mixins(NextPageMixin) {
   private readonly syncUserProfile!: () => User
   private readonly syncOrganizations!: () => Organization[]
   private readonly syncCurrentOrganization!: (organization: Organization) => Promise<void>
+  private readonly syncMyOrgMembership!:() => Member
 
   @Prop({ default: 'bcsc' }) idpHint: string
 
@@ -50,8 +51,7 @@ export default class Signin extends Mixins(NextPageMixin) {
         if (this.idpHint === 'bcsc') {
           await this.syncUserProfile()
           await this.syncOrganizations()
-          // eslint-disable-next-line no-console
-          console.info('[SignIn.vue]Logged in User.Starting refreshTimer')
+          await this.syncMyOrgMembership()
           var self = this
           let tokenService = new TokenService()
           tokenService.initUsingUrl(`${process.env.VUE_APP_PATH}config/kc/keycloak.json`).then(function (success) {

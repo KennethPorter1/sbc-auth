@@ -88,8 +88,7 @@ interface InvitationInfo {
 
 @Component({
   computed: {
-    ...mapState('org', ['currentOrganization', 'pendingOrgInvitations']),
-    ...mapGetters('org', ['myOrgMembership'])
+    ...mapState('org', ['currentOrganization', 'pendingOrgInvitations', 'myOrgMembership'])
   },
   methods: {
     ...mapMutations('org', ['resetInvitations']),

@@ -14,6 +14,10 @@ export default class OrgService {
     return Axios.get(`${ConfigHelper.getAuthAPIUrl()}/orgs/${orgId}/members?status=${status}`)
   }
 
+  public static async getOrgMemberShipForCurrentUser (orgId: number): Promise<AxiosResponse<Member>> {
+    return Axios.get(`${ConfigHelper.getAuthAPIUrl()}/orgs/${orgId}/member/@me`)
+  }
+
   public static async getOrgInvitations (orgId: number, status: string = 'ALL'): Promise<AxiosResponse<Invitations>> {
     return Axios.get(`${ConfigHelper.getAuthAPIUrl()}/orgs/${orgId}/invitations?status=${status}`)
   }

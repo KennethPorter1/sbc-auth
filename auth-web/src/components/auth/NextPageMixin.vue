@@ -11,8 +11,7 @@ import Vue from 'vue'
 @Component({
   computed: {
     ...mapState('user', ['userProfile', 'userContact']),
-    ...mapState('org', ['organizations', 'currentOrganization']),
-    ...mapGetters('org', ['myOrgMembership'])
+    ...mapState('org', ['organizations', 'currentOrganization', 'myOrgMembership'])
   }
 })
 export default class NextPageMixin extends Vue {
@@ -23,6 +22,7 @@ export default class NextPageMixin extends Vue {
   protected readonly currentOrganization!: Organization
 
   protected getNextPageUrl (): string {
+    // eslint-disable-next-line no-console
     let nextStep = '/'
     // Redirect to user profile if no contact info or terms not accepted
     // Redirect to create team if no orgs

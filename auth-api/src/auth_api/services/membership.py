@@ -37,7 +37,6 @@ from .notification import send_email
 from .org import Org as OrgService
 from .user import User as UserService
 
-
 ENV = Environment(loader=FileSystemLoader('.'), autoescape=True)
 CONFIG = get_named_config()
 
@@ -68,6 +67,13 @@ class Membership:  # pylint: disable=too-many-instance-attributes,too-few-public
     def get_membership_type_by_code(type_code):
         """Get a membership type by the given code."""
         return MembershipTypeModel.get_membership_type_by_code(type_code=type_code)
+
+    @staticmethod
+    def get_current_user_membership_for_org(org_id, token_info: Dict = None):
+        current_user: UserService = UserService.find_by_jwt_token(token_info)
+        current_user_membership: MembershipModel = \
+            MembershipModel.find_membership_by_user_and_org(user_id=current_user.identifier, org_id=org_id)
+        return current_user_membership
 
     @staticmethod
     def get_members_for_org(org_id, status=Status.ACTIVE,  # pylint:disable=too-many-return-statements
@@ -102,7 +108,7 @@ class Membership:  # pylint: disable=too-many-instance-attributes,too-few-public
         # If active status for current user, then check organizational role
         if current_user_membership.status == Status.ACTIVE.value:
             if current_user_membership.membership_type_code == OWNER or \
-               current_user_membership.membership_type_code == ADMIN:
+                    current_user_membership.membership_type_code == ADMIN:
                 return MembershipModel.find_members_by_org_id_by_status_by_roles(org_id, membership_roles, status)
 
             return MembershipModel.find_members_by_org_id_by_status_by_roles(org_id, membership_roles, status) \

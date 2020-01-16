@@ -59,8 +59,7 @@ import { getModule } from 'vuex-module-decorators'
 @Component({
   computed: {
     ...mapState('business', ['businesses']),
-    ...mapState('org', ['currentOrganization']),
-    ...mapGetters('org', ['myOrgMembership'])
+    ...mapState('org', ['currentOrganization', 'myOrgMembership'])
   },
   methods: {
     ...mapMutations('business', ['setCurrentBusiness'])
